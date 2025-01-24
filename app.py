@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 import time
 import io
 from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+import io
 
 # Load environment variables
 load_dotenv()
@@ -81,7 +85,7 @@ def download_solutions_pdf():
         if not solutions:
             raise ValueError("No solutions provided")
 
-        # Generate your PDF content here
+        # Generate PDF content
         pdf_content = generate_pdf_content(solutions)
 
         # Create a BytesIO buffer to hold the PDF data
@@ -99,17 +103,18 @@ def download_solutions_pdf():
 
 def generate_pdf_content(solutions):
     buffer = io.BytesIO()
-    p = canvas.Canvas(buffer)
-    p.drawString(100, 750, "Solutions:")
-    y = 700
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    elements.append(Paragraph("Solutions:", styles['Title']))
+
     for solution in solutions:
-        p.drawString(100, y, solution)
-        y -= 30
-        if y < 100:
-            p.showPage()
-            y = 750
-    p.showPage()
-    p.save()
+        # Assuming solutions are in LaTeX, render them properly using Matplotlib or similar tool
+        formatted_solution = f"$$ {solution} $$"  # This is a placeholder for LaTeX rendering
+        elements.append(Paragraph(formatted_solution, styles['BodyText']))
+
+    doc.build(elements)
     buffer.seek(0)
     return buffer.read()
 
