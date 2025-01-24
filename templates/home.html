@@ -272,39 +272,38 @@
     selectedFileName.textContent = fileInput.files[0]?.name || "";
     selectedFileName.classList.remove("hidden");
   });
-
   downloadPdfBtn.addEventListener("click", () => {
-    const solutions = Array.from(document.querySelectorAll('#solutionsList li')).map(li => li.textContent);
+  const solutions = Array.from(document.querySelectorAll('#solutionsList li')).map(li => li.textContent);
 
-    fetch('/download-solutions-pdf', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ solutions })
+  fetch('/download-solutions-pdf', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ solutions })
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.blob();
     })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.blob();
-      })
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = 'solutions.pdf';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-      })
-      .catch(error => {
-        console.error("Error downloading PDF:", error);
-        Swal.fire("Error", "Failed to download PDF.", "error");
-      });
-  });
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = 'solutions.pdf';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    })
+    .catch(error => {
+      console.error("Error downloading PDF:", error);
+      Swal.fire("Error", "Failed to download PDF.", "error");
+    });
 });
+ });
 
   </script>
 </body>
