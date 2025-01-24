@@ -217,10 +217,9 @@
 });
   </script>
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
   const uploadForm = document.getElementById("uploadForm");
   const fileInput = document.getElementById("fileInput");
-  const analyzeBtn = document.getElementById("analyzeBtn");
   const progressBar = document.getElementById("progressBar");
   const progressBarFill = document.getElementById("progressBarFill");
   const loadingSpinner = document.getElementById("loadingSpinner");
@@ -313,7 +312,7 @@
       });
 
     } catch (error) {
-      Swal.fire("Error", error.message, "error");
+      Swal.fire("Error", `Failed to upload file: ${error.message}`, "error");
     } finally {
       progressBar.classList.add("hidden");
       loadingSpinner.classList.add("hidden");
