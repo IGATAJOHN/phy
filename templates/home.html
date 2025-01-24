@@ -162,6 +162,60 @@
 });
 
   </script>
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+  const uploadForm = document.getElementById("uploadForm");
+  const fileInput = document.getElementById("fileInput");
+  const analyzeBtn = document.getElementById("analyzeBtn");
+  const progressBar = document.getElementById("progressBar");
+  const progressBarFill = document.getElementById("progressBarFill");
+  const loadingSpinner = document.getElementById("loadingSpinner");
+
+  uploadForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const file = fileInput.files[0];
+    if (!file) {
+      console.error("No file selected");
+      alert("Please select a file to upload.");
+      return;
+    }
+
+    console.log("File selected:", file.name);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/upload", true);
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = (event.loaded / event.total) * 100;
+        progressBarFill.style.width = percentComplete + "%";
+        console.log("Upload progress:", percentComplete + "%");
+      }
+    });
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        console.log("Upload successful:", xhr.responseText);
+        alert("File uploaded successfully.");
+      } else {
+        console.error("Upload failed:", xhr.status, xhr.statusText);
+        alert("File upload failed. Please try again.");
+      }
+    };
+
+    xhr.onerror = () => {
+      console.error("Upload error");
+      alert("An error occurred during the upload. Please try again.");
+    };
+
+    xhr.send(formData);
+    console.log("Form submitted");
+  });
+});
+  </script>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
   const uploadForm = document.getElementById("uploadForm");
