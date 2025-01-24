@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Physics Problems</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <script src="https://unpkg.com/@mui/material@5.14.14/umd/material-ui.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://checkout.flutterwave.com/v3.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  
+  <script type="text/javascript" id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
+  <!-- SweetAlert CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <!-- SweetAlert JS -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="bg-gray-50 font-sans">
+  <div class="app-container">
+    <header class="bg-blue-600 text-white shadow-lg">
+      <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
+        <h1 class="font-bold text-xl">Smart Physics Assignment Tool</h1>
+        <!-- Hamburger Button for Mobile -->
+        <div class="md:hidden">
+          <button id="hamburgerBtn" class="text-white focus:outline-none">
+            <i class="material-icons text-4xl">menu</i>
+          </button>
+        </div>
+        <!-- Navigation Menu -->
+        <div id="navMenu" class="hidden md:flex space-x-6">
+          <a href="https://example.com/home" class="nav-link text-white hover:text-gray-200">Home</a>
+          <a href="https://example.com/assignments" class="nav-link text-white hover:text-gray-200">Assignments</a>
+          <a href="https://example.com/profile" class="nav-link text-white hover:text-gray-200">Profile</a>
+          <button id="upgradeBtn" class="bg-yellow-500 text-black px-4 py-1 md:px-4 md:py-2 rounded-lg">Upgrade</button>
+          <button id="logoutBtn" class="bg-red-500 text-white px-4 py-1 md:px-4 md:py-2 rounded-lg">Logout</button>
+        </div>
+      </nav>
+    </header>
+    <!-- Dropdown Menu for Mobile -->
+    <div id="dropdownMenu" class="hidden md:hidden bg-blue-600 text-white space-y-2 py-4 px-4">
+      <a href="https://example.com/home" class="block nav-link">Home</a>
+      <a href="https://example.com/assignments" class="block nav-link">Assignments</a>
+      <a href="https://example.com/profile" class="block nav-link">Profile</a>
+      <button id="upgradeBtnMobile" class="w-full bg-yellow-500 text-black px-4 py-1 rounded-lg">Upgrade</button>
+      <button id="logoutBtnMobile" class="w-full bg-red-500 text-white px-4 py-1 rounded-lg">Logout</button>
+    </div>
+    
+    <main class="main-content bg-gray-100 min-h-screen py-8">
+      <div class="container mx-auto px-4">
+        <div id="errorDisplay"></div>
+        
+        <div class="upload-container bg-white p-6 rounded-lg shadow-md max-w-lg mx-auto">
+          <form id="uploadForm" enctype="multipart/form-data">
+            <div id="dropzone" class="dropzone border-2 border-dashed border-gray-300 p-8 rounded-lg flex flex-col items-center">
+              <input type="file" id="fileInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png">
+              <label for="fileInput" class="cursor-pointer">
+                <div class="text-gray-600">
+                  <i class="material-icons text-4xl mb-2">cloud_upload</i>
+                  <p>Drag and drop your assignment here or click to browse</p>
+                  <p class="text-sm text-gray-500 mt-2">Supported formats: PDF, JPG, PNG</p>
+                  <p id="selectedFileName" class="mt-2 text-blue-600 hidden"></p>
+                </div>
+              </label>
+            </div>
+            <p id="selectedFileName" class="mt-2 text-blue-600 hidden"></p>
+            <button id="installBtn" style="display: none;">Install App</button>
+            <div id="progressBar" class="progress-bar mt-4 hidden">
+              <div id="progressBarFill" class="progress-bar-fill"></div>
+            </div>
+    
+            <div id="loadingSpinner" class="hidden flex flex-col items-center mt-4">
+              <div class="spinner border-t-4 border-blue-500 rounded-full w-12 h-12 animate-spin"></div>
+              <p>Analyzing your assignment...</p>
+            </div>
+    
+            <button type="submit" id="analyzeBtn" class="mt-6 w-full bg-blue-600 text-white py-2 px-4 rounded-lg shadow-lg hover:bg-blue-700 transition duration-300">
+              Analyze Assignment
+            </button>
+          </form>
+        </div>
+<!-- Tabs for Problems and Solutions -->
+<div id="resultsSection" class="hidden mt-8">
+  <!-- Tab Navigation -->
+  <div class="tabs flex justify-center mb-4">
+    <button id="problemsTab" class="tab-button bg-gray-300 text-gray-700 py-2 px-4 mr-2 rounded-lg">Problems</button>
+    <button id="solutionsTab" class="tab-button bg-gray-300 text-gray-700 py-2 px-4 rounded-lg">Solutions</button>
+  </div>
+  
+  <!-- Tab Content -->
+  <div id="problemsContent" class="tab-content bg-white p-6 rounded-lg shadow-md">
+    <h2 class="text-xl font-bold mb-4">Extracted Problems</h2>
+    <ul id="problemsList" class="list-disc pl-6 space-y-2"></ul>
+  </div>
+  <div id="solutionsContent" class="tab-content bg-white p-6 rounded-lg shadow-md hidden">
+    <h2 class="text-xl font-bold mb-4">Solutions in LaTeX</h2>
+    <ul id="solutionsList" class="list-disc pl-6 space-y-2"></ul>
+    <button id="downloadPdfBtn" class="mt-4 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg hover:bg-green-600 transition duration-300">
+      Download Solutions in PDF
+    </button>
+  </div>
+</div>
+        
+
+      </div>
+    </main>
+  
+    <footer class="bg-blue-800 text-white py-6">
+      <div class="container mx-auto px-4">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+          <p class="text-sm">&copy; 2023 Smart Physics Assignment Tool. All rights reserved.</p>
+          <div class="space-x-4 mt-4 md:mt-0">
+            <a href="https://example.com/terms" class="text-gray-300 hover:text-white">Terms</a>
+            <a href="https://example.com/privacy" class="text-gray-300 hover:text-white">Privacy Policy</a>
+            <a href="https://example.com/contact" class="text-gray-300 hover:text-white">Contact</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+  
+  <!-- Modal Template -->
+  <div id="conceptsModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden">
+    <div class="key-concepts-modal bg-white p-6 rounded-lg shadow-lg w-1/3">
+      <div id="modalContent"></div>
+      <button id="closeModal" class="mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300">Close</button>
+    </div>
+  </div>
+  
+  <!-- Upgrade Modal -->
+  <div id="upgradeModal" class="modal-overlay hidden">
+    <div class="upgrade-modal">
+      <h2 class="text-xl font-bold mb-4">Upgrade Your Account</h2>
+      <p class="mb-4">You have reached the limit of 3 free file uploads. Upgrade now to continue using all features!</p>
+      <div class="price-details mb-6">
+        <p class="text-2xl font-bold">₦4,500</p>
+        <p class="text-gray-600">Unlimited access</p>
+      </div>
+      <button id="payButton" class="w-full bg-blue-500 text-white py-2 px-4 rounded mb-4">
+        Pay with Flutterwave
+      </button>
+      <button id="closeUpgradeModal" class="w-full border border-gray-300 py-2 px-4 rounded">
+        Cancel
+      </button>
+    </div>
+  </div>
+  
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+  const hamburgerBtn = document.getElementById('hamburgerBtn');
+  const dropdownMenu = document.getElementById('dropdownMenu');
+
+  hamburgerBtn.addEventListener('click', function() {
+    dropdownMenu.classList.toggle('hidden');
+  });
+});
+
+  </script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+  const uploadForm = document.getElementById("uploadForm");
+  const fileInput = document.getElementById("fileInput");
+  const analyzeBtn = document.getElementById("analyzeBtn");
+  const progressBar = document.getElementById("progressBar");
+  const progressBarFill = document.getElementById("progressBarFill");
+  const loadingSpinner = document.getElementById("loadingSpinner");
+  const resultsSection = document.getElementById("resultsSection");
+  const problemsTab = document.getElementById("problemsTab");
+  const solutionsTab = document.getElementById("solutionsTab");
+  const problemsContent = document.getElementById("problemsContent");
+  const solutionsContent = document.getElementById("solutionsContent");
+  const problemsList = document.getElementById("problemsList");
+  const solutionsList = document.getElementById("solutionsList");
+  const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+
+  const toggleTab = (activeTab, inactiveTab, activeContent, inactiveContent) => {
+    activeTab.classList.add("bg-blue-600", "text-white");
+    activeTab.classList.remove("bg-gray-300", "text-gray-700");
+    inactiveTab.classList.add("bg-gray-300", "text-gray-700");
+    inactiveTab.classList.remove("bg-blue-600", "text-white");
+    activeContent.classList.remove("hidden");
+    inactiveContent.classList.add("hidden");
+  };
+
+  problemsTab.addEventListener("click", () => {
+    toggleTab(problemsTab, solutionsTab, problemsContent, solutionsContent);
+  });
+
+  solutionsTab.addEventListener("click", () => {
+    toggleTab(solutionsTab, problemsTab, solutionsContent, problemsContent);
+  });
+
+  uploadForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const file = fileInput.files[0];
+    if (!file) {
+      Swal.fire("Error", "Please select a file before uploading.", "error");
+      return;
+    }
+
+    // Show progress bar and spinner
+    progressBar.classList.remove("hidden");
+    loadingSpinner.classList.remove("hidden");
+    progressBarFill.style.width = "0%";
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      const { problems, solutions } = result;
+
+      // Populate Problems Tab
+      problemsList.innerHTML = "";
+      problems.forEach((problem) => {
+        const listItem = document.createElement("li");
+        listItem.textContent = problem;
+        problemsList.appendChild(listItem);
+      });
+
+      // Populate Solutions Tab
+      solutionsList.innerHTML = "";
+      solutions.forEach((solution) => {
+        const listItem = document.createElement("li");
+        listItem.innerHTML = solution; // Assuming solutions are in LaTeX and rendered with MathJax
+        solutionsList.appendChild(listItem);
+      });
+
+      // Show results section and default to Problems tab
+      resultsSection.classList.remove("hidden");
+      toggleTab(problemsTab, solutionsTab, problemsContent, solutionsContent);
+
+      // Rerender MathJax for LaTeX
+      if (window.MathJax) {
+        MathJax.typesetPromise();
+      }
+
+      // Show success message with SweetAlert
+      Swal.fire({
+        icon: 'success',
+        title: 'Upload Complete',
+        text: 'Your file has been successfully uploaded and analyzed. View the results below.',
+        confirmButtonText: 'View Results'
+      });
+
+    } catch (error) {
+      Swal.fire("Error", error.message, "error");
+    } finally {
+      progressBar.classList.add("hidden");
+      loadingSpinner.classList.add("hidden");
+    }
+  });
+
+  fileInput.addEventListener("change", () => {
+    const selectedFileName = document.getElementById("selectedFileName");
+    selectedFileName.textContent = fileInput.files[0]?.name || "";
+    selectedFileName.classList.remove("hidden");
+  });
+
+  downloadPdfBtn.addEventListener("click", () => {
+    const solutions = Array.from(document.querySelectorAll('#solutionsList li')).map(li => li.textContent);
+
+    fetch('/download-solutions-pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ solutions })
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'solutions.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(error => {
+        Swal.fire("Error", "Failed to download PDF.", "error");
+      });
+  });
+});
+
+  </script>
+</body>
+</html>
