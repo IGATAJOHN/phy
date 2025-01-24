@@ -66,6 +66,10 @@ def upload_file():
         # Return problems and LaTeX solutions
         return jsonify({"problems": problems, "solutions": solutions})
 
+    except MemoryError as me:
+        app.logger.error(f"Memory error: {me}")
+        return jsonify({"error": "Server out of memory"}), 500
+
     except Exception as e:
         app.logger.error(f"Error processing file: {e}")
         return jsonify({"error": "Internal server error"}), 500
