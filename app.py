@@ -9,10 +9,10 @@ from dotenv import load_dotenv
 import time
 import io
 from reportlab.pdfgen import canvas
+import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
-import io
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
 
 # Load environment variables
 load_dotenv()
@@ -103,21 +103,37 @@ def download_solutions_pdf():
 
 def generate_pdf_content(solutions):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    doc = SimpleDocTemplate(buffer, pagesize=letter,
+                            rightMargin=72, leftMargin=72,
+                            topMargin=72, bottomMargin=72)
     styles = getSampleStyleSheet()
     elements = []
 
     elements.append(Paragraph("Solutions:", styles['Title']))
+    elements.append(Spacer(1, 12))
 
     for solution in solutions:
-        # Assuming solutions are in LaTeX, render them properly using Matplotlib or similar tool
-        formatted_solution = f"$$ {solution} $$"  # This is a placeholder for LaTeX rendering
-        elements.append(Paragraph(formatted_solution, styles['BodyText']))
+        # Render LaTeX content as an image using matplotlib
+        fig, ax = plt.subplots(figsize=(8, 2))  # Adjust the figsize as needed
+        ax.text(0.5, 0.5, f"${solution}$", fontsize=12, ha='center', va='center', wrap=True)
+        ax.axis('off')
+
+        # Save the figure to a BytesIO buffer
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png', bbox_inches='tight')
+        plt.close(fig)
+        img_buffer.seek(0)
+
+        # Add the image to the PDF, resizing it to fit within the margins
+        img = Image(img_buffer)
+        img.drawWidth = 6.5 * 72  # 6.5 inches
+        img.drawHeight = 2 * 72  # 2 inches
+        elements.append(img)
+        elements.append(Spacer(1, 12))  # Add space between solutions
 
     doc.build(elements)
     buffer.seek(0)
     return buffer.read()
-
 def extract_text_from_image(image_path):
     """Extract text from an image using Tesseract OCR."""
     image = Image.open(image_path)
