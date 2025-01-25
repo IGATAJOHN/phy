@@ -5,3 +5,4 @@ PyMuPDF
 openai
 python-dotenv
 reportlab
+matplotlib
