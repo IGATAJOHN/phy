@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file, make_response
+from flask import Flask, render_template, request, jsonify, send_file, make_response, flash, redirect, url_for, session
 import os
 from werkzeug.utils import secure_filename
 from PIL import Image
@@ -9,11 +9,16 @@ from dotenv import load_dotenv
 import time
 import io
 from reportlab.pdfgen import canvas
-import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
+import matplotlib.pyplot as plt
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, Spacer
-
+from werkzeug.security import generate_password_hash, check_password_hash
+from pymongo import MongoClient
+from bson import ObjectId
+import json
+from flask_login import LoginManager, login_user,login_required, current_user   #, login_required, current_user, logout_user, UserMixin
 # Load environment variables
 load_dotenv()
 
@@ -21,13 +26,147 @@ load_dotenv()
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+app.secret_key = os.getenv("SECRET_KEY")
 
+# Disable CSRF protection
+# csrf = CSRFProtect(app)
+
+# Configure MongoDB connection
+mongo_uri = os.getenv("MONGODB_URI")
+client = MongoClient(mongo_uri)
+db = client['physics']  # Use the 'physics' database
+users_collection = db['users']
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+# Set the login view for redirecting unauthorized users
+login_manager.login_view = 'login'
 # OpenAI API key
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+class User:
+    def __init__(self, user_data):
+        self.id = str(user_data['_id'])  # Use ObjectId as a string
+        self.email = user_data['email']
+
+    def is_authenticated(self):
+        return True
+
+    def is_active(self):
+        return True
+
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return self.id
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    user_data = users_collection.find_one({"_id": ObjectId(user_id)})
+    if user_data:
+        return User(user_data)
+    return None
 
 @app.route('/')
+@login_required
 def home():
-    return render_template('home.html')
+    return render_template('home.html', user=current_user)  # Flask-Login provides `current_user`
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'GET':
+        # Render the login page
+        return render_template('login.html')
+    
+    # Handle POST request (actual login logic)
+    email = request.form.get('email')
+    password = request.form.get('password')
+
+    # Fetch the user from MongoDB
+    user_data = users_collection.find_one({"email": email})
+    if not user_data:
+        return jsonify({"error": "Invalid email or password"}), 401
+
+    # Verify the password
+    if not check_password_hash(user_data['password'], password):
+        return jsonify({"error": "Invalid email or password"}), 401
+
+    # Log the user in
+    user = User(user_data)
+    login_user(user)
+
+    return jsonify({"message": "Login successful", "redirect": url_for('home')}), 200
+
+
+
+class JSONEncoder(json.JSONEncoder):
+    """Custom JSON Encoder for MongoDB ObjectId."""
+    def default(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        return json.JSONEncoder.default(self, obj)
+
+app.json_encoder = JSONEncoder
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        first_name = request.form.get('firstName')
+        last_name = request.form.get('lastName')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirmPassword')
+
+        # Validate form input
+        errors = {}
+        if not first_name:
+            errors['firstName'] = 'First name is required.'
+        if not last_name:
+            errors['lastName'] = 'Last name is required.'
+        if not email:
+            errors['email'] = 'Email is required.'
+        if not phone:
+            errors['phone'] = 'Phone number is required.'
+        if not password:
+            errors['password'] = 'Password is required.'
+        if password != confirm_password:
+            errors['confirmPassword'] = 'Passwords do not match.'
+
+        if errors:
+            return jsonify({"error": errors}), 400
+
+        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+
+        new_user = {
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email,
+            'phone': phone,
+            'password': hashed_password,
+            'uploads': 0  # Initialize uploads count
+        }
+
+        try:
+            users_collection.insert_one(new_user)
+            flash('Registration successful!', 'success')
+            return jsonify({'message': 'Registration successful'}), 200
+        except Exception as e:
+            return jsonify({'error': 'An unexpected error occurred'}), 500
+
+    return render_template('register.html')
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()  # Clear session data
+    return jsonify({"message": "Logged out successfully"}), 200
+
+@app.route('/users_list', methods=['GET'])
+def users_list():
+    users = list(users_collection.find({}, {'_id': 0}))
+    return render_template('users.html', users=users)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -78,6 +217,7 @@ def upload_file():
         app.logger.error(f"Error processing file: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
+
 @app.route('/download-solutions-pdf', methods=['POST'])
 def download_solutions_pdf():
     try:
@@ -100,6 +240,23 @@ def download_solutions_pdf():
     except Exception as e:
         app.logger.error(f"Error generating PDF: {e}")
         return "Internal Server Error", 500
+@app.route('/confirm-upgrade', methods=['POST'])
+def confirm_upgrade():
+    try:
+        data = request.json
+        tx_ref = data.get('tx_ref')
+        
+        # Here you would verify the payment status with Flutterwave API
+        # For example, you can use the tx_ref to check the transaction status
+        # If successful, upgrade the user account in the database
+
+        app.logger.info(f"Payment confirmed for transaction reference: {tx_ref}")
+        return jsonify({"success": True, "message": "Account upgraded successfully"})
+    except Exception as e:
+        app.logger.error(f"Error confirming payment: {e}")
+        return jsonify({"success": False, "message": "Internal server error"}), 500
+
+
 
 def generate_pdf_content(solutions):
     buffer = io.BytesIO()
@@ -134,6 +291,16 @@ def generate_pdf_content(solutions):
     doc.build(elements)
     buffer.seek(0)
     return buffer.read()
+@app.route('/users', methods=['GET'])
+def users():
+    try:
+        # Fetch all users from the database
+        users = list(users_collection.find({}, {'_id': 0, 'password': 0}))  # Exclude sensitive fields like '_id' and 'password'
+        return jsonify(users), 200
+    except Exception as e:
+        # logging.error(f"Error fetching users: {e}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
+
 def extract_text_from_image(image_path):
     """Extract text from an image using Tesseract OCR."""
     image = Image.open(image_path)
@@ -157,7 +324,7 @@ def extract_physics_problems(text):
 
     List the questions one by one.
     """
-    response = client.chat.completions.create(
+    response = openai_client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a helpful assistant that processes text to extract questions."},
@@ -180,7 +347,7 @@ def solve_physics_problems(problems):
 
         Ensure that the solution is concise and avoids generating multiple variations.
         """
-        response = client.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a physics expert providing detailed solutions in LaTeX format."},
